@@ -1,8 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import SharedBadge from '@/components/SharedBadge'
-import { startRealtime } from '@/lib/realtime'
-import { useEffect } from 'react'
+import RealtimeBootstrap from '@/components/RealtimeBootstrap'
 
 export const metadata: Metadata = {
   title: '現場マニュアル',
@@ -14,10 +13,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // client-side realtime init
-  useEffect(() => {
-    startRealtime()
-  }, [])
   return (
     <html lang="ja">
       <body className="text-ink">
@@ -25,6 +20,7 @@ export default function RootLayout({
           {children}
         </div>
         <SharedBadge />
+        <RealtimeBootstrap />
       </body>
     </html>
   )
