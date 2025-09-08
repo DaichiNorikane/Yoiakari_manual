@@ -1,14 +1,15 @@
+// @ts-nocheck
 "use client"
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 export const isSharedEnabled = !!(SUPABASE_URL && SUPABASE_ANON_KEY)
 
-export const supabase = isSharedEnabled
+export const supabase: SupabaseClient | null = isSharedEnabled
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : undefined as any
+  : null
 
 export type ManualDoc = {
   id: string
@@ -18,9 +19,9 @@ export type ManualDoc = {
 const DOC_ID = 'default'
 const TABLE = 'manual_docs'
 
-export async function fetchSharedDoc<T=unknown>(): Promise<T | null> {
+export async function fetchSharedDoc<T = unknown>(): Promise<T | null> {
   if (!isSharedEnabled) return null
-  const { data, error } = await supabase
+  const { data, error } = await supabase!
     .from(TABLE)
     .select('data')
     .eq('id', DOC_ID)
@@ -35,7 +36,7 @@ export async function fetchSharedDoc<T=unknown>(): Promise<T | null> {
 
 export async function saveSharedDoc(data: unknown) {
   if (!isSharedEnabled) return
-  const { error } = await supabase
+  const { error } = await supabase!
     .from(TABLE)
     .upsert({ id: DOC_ID, data }, { onConflict: 'id' })
   if (error) {

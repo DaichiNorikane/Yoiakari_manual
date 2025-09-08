@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { addImages, getPlace, getPlaceAsync, removeImage } from '@/lib/storage'
+import { addImages, getPlace, getPlaceAsync, removeImage, subscribePlaces } from '@/lib/storage'
 import { SectionKey } from '@/types'
 
 export default function ImagesEditor({ placeId, section }: { placeId: string, section: Extract<SectionKey, 'wiring' | 'tasks' | 'equipment' | 'teardown'> }) {
@@ -12,6 +12,11 @@ export default function ImagesEditor({ placeId, section }: { placeId: string, se
     getPlaceAsync(placeId).then(pp => {
       if (pp) setImages(pp.sections[section].images)
     })
+    const unsub = subscribePlaces(list => {
+      const p2 = list.find(p => p.id === placeId)
+      if (p2) setImages(p2.sections[section].images)
+    })
+    return unsub
   }, [placeId, section])
 
   async function onFilesSelected(files: FileList | null) {

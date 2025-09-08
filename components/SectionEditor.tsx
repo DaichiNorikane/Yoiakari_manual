@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useMemo, useState } from 'react'
-import { addImages, getPlace, getPlaceAsync, removeImage, updateSectionText } from '@/lib/storage'
+import { addImages, getPlace, getPlaceAsync, removeImage, updateSectionText, subscribePlaces } from '@/lib/storage'
 import { SectionKey } from '@/types'
 import { simpleMarkdown } from '@/lib/markdown'
 
@@ -21,6 +21,14 @@ export default function SectionEditor({ placeId, section }: { placeId: string, s
         setImages(pp.sections[section].images)
       }
     })
+    const unsub = subscribePlaces(list => {
+      const p2 = list.find(p => p.id === placeId)
+      if (p2) {
+        setText(p2.sections[section].text)
+        setImages(p2.sections[section].images)
+      }
+    })
+    return unsub
   }, [placeId, section])
 
   const preview = useMemo(() => simpleMarkdown(text), [text])

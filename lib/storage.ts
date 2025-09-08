@@ -4,6 +4,21 @@ import { fetchSharedDoc, saveSharedDoc, isSharedEnabled } from '@/lib/supabase'
 
 const STORAGE_KEY = 'yoi_places_v1'
 
+// simple subscriber model for client updates
+type Listener = (places: Place[]) => void
+const listeners = new Set<Listener>()
+
+export function subscribePlaces(listener: Listener) {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+function notify(places: Place[]) {
+  listeners.forEach((fn) => {
+    try { fn(places) } catch {}
+  })
+}
+
 export function loadPlaces(): Place[] {
   if (typeof window === 'undefined') return []
   try {
@@ -15,15 +30,16 @@ export function loadPlaces(): Place[] {
   }
 }
 
-export function savePlaces(places: Place[]) {
+export function savePlaces(places: Place[], opts?: { skipRemote?: boolean }) {
   if (typeof window === 'undefined') return
   localStorage.setItem(STORAGE_KEY, JSON.stringify(places))
   // best-effort remote sync
-  if (isSharedEnabled) {
+  if (isSharedEnabled && !opts?.skipRemote) {
     // no await to keep UI responsive
     // structure: { version: 1, places }
     void saveSharedDoc({ version: 1, places })
   }
+  notify(places)
 }
 
 // Async loaders for shared mode
@@ -31,7 +47,7 @@ export async function loadPlacesAsync(): Promise<Place[]> {
   if (!isSharedEnabled) return loadPlaces()
   const remote = await fetchSharedDoc<{ version: number; places: Place[] }>()
   if (remote && Array.isArray(remote.places)) {
-    savePlaces(remote.places) // update local cache
+    savePlaces(remote.places, { skipRemote: true }) // update local cache only
     return remote.places
   }
   // no remote doc yet: seed from local if any

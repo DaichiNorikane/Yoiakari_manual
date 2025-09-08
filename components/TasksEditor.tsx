@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { addTask, getPlace, getPlaceAsync, removeTask, toggleTask, updateTaskText } from '@/lib/storage'
+import { addTask, getPlace, getPlaceAsync, removeTask, toggleTask, updateTaskText, subscribePlaces } from '@/lib/storage'
 
 export default function TasksEditor({ placeId }: { placeId: string }) {
   const [tasks, setTasks] = useState<{ id: string; text: string; done: boolean }[]>([])
@@ -10,6 +10,11 @@ export default function TasksEditor({ placeId }: { placeId: string }) {
     const p = getPlace(placeId)
     setTasks(p?.sections.tasks.tasks ?? [])
     getPlaceAsync(placeId).then(pp => setTasks(pp?.sections.tasks.tasks ?? []))
+    const unsub = subscribePlaces(list => {
+      const p2 = list.find(p => p.id === placeId)
+      setTasks(p2?.sections.tasks.tasks ?? [])
+    })
+    return unsub
   }, [placeId])
 
   function refresh() {

@@ -1,7 +1,7 @@
 "use client"
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
-import { getPlace, getPlaceAsync, loadPlaces, loadPlacesAsync, savePlaces } from '@/lib/storage'
+import { getPlace, getPlaceAsync, loadPlaces, loadPlacesAsync, savePlaces, subscribePlaces } from '@/lib/storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 const tabs = [
@@ -30,6 +30,11 @@ export default function PlaceLayout({ children }: { children: React.ReactNode })
         loadedRef.current = true
       }
     })
+    const unsub = subscribePlaces(list => {
+      const p2 = list.find(p => p.id === params.id)
+      if (p2) setName(p2.name)
+    })
+    return unsub
   }, [params.id])
 
   useEffect(() => {
