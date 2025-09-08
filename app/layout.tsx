@@ -2,6 +2,9 @@ import './globals.css'
 import type { Metadata } from 'next'
 import SharedBadge from '@/components/SharedBadge'
 import RealtimeBootstrap from '@/components/RealtimeBootstrap'
+import { Noto_Sans_JP } from 'next/font/google'
+
+const jpFont = Noto_Sans_JP({ subsets: ['japanese'], weight: ['400','500','700'] })
 
 export const metadata: Metadata = {
   title: '現場マニュアル',
@@ -15,7 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body className="text-ink">
+      <body className={`${jpFont.className} text-ink`}>
         <div className="max-w-3xl mx-auto p-4 sm:p-6 relative">
           {children}
         </div>

@@ -11,10 +11,15 @@ export default {
       colors: {
         card: '#ffffff',
         ink: '#0f172a',
-        soft: '#f1f5f9',
+        soft: '#f6f8fb',
+        brand: '#7c9cff',
+        mint: '#A7F3D0',
+        peach: '#FECACA',
+        sky: '#BFDBFE',
+        lavender: '#C7D2FE',
+        blush: '#FBCFE8',
       },
     },
   },
   plugins: [],
 } satisfies Config
-
