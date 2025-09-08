@@ -21,7 +21,7 @@ const TABLE = 'manual_docs'
 export async function fetchSharedDoc<T=unknown>(): Promise<T | null> {
   if (!isSharedEnabled) return null
   const { data, error } = await supabase
-    .from<ManualDoc>(TABLE)
+    .from(TABLE)
     .select('data')
     .eq('id', DOC_ID)
     .single()
