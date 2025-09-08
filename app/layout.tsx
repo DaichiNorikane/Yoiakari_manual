@@ -4,7 +4,7 @@ import SharedBadge from '@/components/SharedBadge'
 import RealtimeBootstrap from '@/components/RealtimeBootstrap'
 import { Noto_Sans_JP } from 'next/font/google'
 
-const jpFont = Noto_Sans_JP({ subsets: ['japanese'], weight: ['400','500','700'] })
+const jpFont = Noto_Sans_JP({ subsets: ['latin'], weight: ['400','500','700'], display: 'swap' })
 
 export const metadata: Metadata = {
   title: '現場マニュアル',
