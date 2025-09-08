@@ -10,7 +10,9 @@ const listeners = new Set<Listener>()
 
 export function subscribePlaces(listener: Listener) {
   listeners.add(listener)
-  return () => listeners.delete(listener)
+  return () => {
+    listeners.delete(listener)
+  }
 }
 
 function notify(places: Place[]) {
