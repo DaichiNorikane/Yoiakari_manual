@@ -1,7 +1,7 @@
 "use client"
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { createPlace, loadPlaces, savePlaces } from '@/lib/storage'
+import { createPlace, loadPlaces, loadPlacesAsync, savePlaces } from '@/lib/storage'
 import type { Place } from '@/types'
 import { useRouter } from 'next/navigation'
 
@@ -12,6 +12,8 @@ export default function HomePage() {
 
   useEffect(() => {
     setPlaces(loadPlaces())
+    // refresh from shared storage if enabled
+    loadPlacesAsync().then(p => setPlaces(p))
   }, [])
 
   function addPlace() {
@@ -66,4 +68,3 @@ export default function HomePage() {
     </div>
   )
 }
-

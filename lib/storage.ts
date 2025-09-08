@@ -1,5 +1,6 @@
 "use client"
 import { Place, SectionData, SectionKey, TaskItem, EquipmentItem } from '@/types'
+import { fetchSharedDoc, saveSharedDoc, isSharedEnabled } from '@/lib/supabase'
 
 const STORAGE_KEY = 'yoi_places_v1'
 
@@ -17,6 +18,28 @@ export function loadPlaces(): Place[] {
 export function savePlaces(places: Place[]) {
   if (typeof window === 'undefined') return
   localStorage.setItem(STORAGE_KEY, JSON.stringify(places))
+  // best-effort remote sync
+  if (isSharedEnabled) {
+    // no await to keep UI responsive
+    // structure: { version: 1, places }
+    void saveSharedDoc({ version: 1, places })
+  }
+}
+
+// Async loaders for shared mode
+export async function loadPlacesAsync(): Promise<Place[]> {
+  if (!isSharedEnabled) return loadPlaces()
+  const remote = await fetchSharedDoc<{ version: number; places: Place[] }>()
+  if (remote && Array.isArray(remote.places)) {
+    savePlaces(remote.places) // update local cache
+    return remote.places
+  }
+  // no remote doc yet: seed from local if any
+  const local = loadPlaces()
+  if (local.length) {
+    await saveSharedDoc({ version: 1, places: local })
+  }
+  return local
 }
 
 export function createEmptySections(): Record<SectionKey, SectionData> {
@@ -60,6 +83,11 @@ export function deletePlace(id: string) {
 
 export function getPlace(id: string): Place | undefined {
   return loadPlaces().find(p => p.id === id)
+}
+
+export async function getPlaceAsync(id: string): Promise<Place | undefined> {
+  const list = await loadPlacesAsync()
+  return list.find(p => p.id === id)
 }
 
 export function updateSectionText(id: string, key: SectionKey, text: string) {

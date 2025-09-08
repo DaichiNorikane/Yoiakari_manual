@@ -1,7 +1,7 @@
 "use client"
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
-import { getPlace, loadPlaces, savePlaces } from '@/lib/storage'
+import { getPlace, getPlaceAsync, loadPlaces, loadPlacesAsync, savePlaces } from '@/lib/storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 const tabs = [
@@ -23,6 +23,13 @@ export default function PlaceLayout({ children }: { children: React.ReactNode })
       setName(p.name)
       loadedRef.current = true
     }
+    // refresh from shared storage
+    getPlaceAsync(params.id).then(pp => {
+      if (pp) {
+        setName(pp.name)
+        loadedRef.current = true
+      }
+    })
   }, [params.id])
 
   useEffect(() => {

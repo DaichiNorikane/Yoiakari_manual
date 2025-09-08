@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useMemo, useState } from 'react'
-import { addImages, getPlace, removeImage, updateSectionText } from '@/lib/storage'
+import { addImages, getPlace, getPlaceAsync, removeImage, updateSectionText } from '@/lib/storage'
 import { SectionKey } from '@/types'
 import { simpleMarkdown } from '@/lib/markdown'
 
@@ -14,6 +14,13 @@ export default function SectionEditor({ placeId, section }: { placeId: string, s
       setText(p.sections[section].text)
       setImages(p.sections[section].images)
     }
+    // refresh from shared storage
+    getPlaceAsync(placeId).then(pp => {
+      if (pp) {
+        setText(pp.sections[section].text)
+        setImages(pp.sections[section].images)
+      }
+    })
   }, [placeId, section])
 
   const preview = useMemo(() => simpleMarkdown(text), [text])
@@ -78,4 +85,3 @@ export default function SectionEditor({ placeId, section }: { placeId: string, s
     </div>
   )
 }
-

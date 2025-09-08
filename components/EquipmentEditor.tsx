@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { addEquipment, getPlace, removeEquipment, updateEquipmentText } from '@/lib/storage'
+import { addEquipment, getPlace, getPlaceAsync, removeEquipment, updateEquipmentText } from '@/lib/storage'
 
 export default function EquipmentEditor({ placeId }: { placeId: string }) {
   const [items, setItems] = useState<{ id: string; text: string }[]>([])
@@ -9,6 +9,7 @@ export default function EquipmentEditor({ placeId }: { placeId: string }) {
   useEffect(() => {
     const p = getPlace(placeId)
     setItems(p?.sections.equipment.equipments ?? [])
+    getPlaceAsync(placeId).then(pp => setItems(pp?.sections.equipment.equipments ?? []))
   }, [placeId])
 
   function refresh() {
@@ -64,4 +65,3 @@ export default function EquipmentEditor({ placeId }: { placeId: string }) {
     </div>
   )
 }
-

@@ -28,3 +28,22 @@ type Place = {
 - 画像は複数アップロード可。削除可。localStorage に保持。
 - Tailwind でカード/ボタン/入力など最低限のスタイル。
 
+共有モード（全ユーザーで同じデータを共有）
+- Supabase を使った「共有モード」を用意しています。以下の準備で有効化されます。
+  1. Supabase プロジェクトを作成
+  2. テーブル作成（SQL）:
+     ```sql
+     create table if not exists manual_docs (
+       id text primary key,
+       data jsonb
+     );
+     -- RLS を無効化するか、anon の read/write を許可するポリシーを設定
+     alter table manual_docs disable row level security;
+     ```
+  3. Vercel の Project Settings → Environment Variables に設定
+     - `NEXT_PUBLIC_SUPABASE_URL` = Supabase の URL
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = anon public key
+  4. 再デプロイ
+
+- ONになると、アプリは `manual_docs` テーブルの `id='default'` 行に JSON 全体を保存/読込します。
+- クライアント側は localStorage をキャッシュとして使用し、表示直後にリモートの内容で自動更新します。
