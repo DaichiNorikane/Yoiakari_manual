@@ -145,11 +145,11 @@ export function removeImage(id: string, key: SectionKey, imageId: string) {
 }
 
 // ---- Tasks helpers ----
-export function addTask(id: string, text: string) {
+export function addTask(id: string, text: string, section: 'tasks' | 'teardown' = 'tasks') {
   const list = loadPlaces()
   const idx = list.findIndex(p => p.id === id)
   if (idx < 0) return
-  const sec = list[idx].sections['tasks']
+  const sec = list[idx].sections[section]
   if (!sec.tasks) sec.tasks = []
   const item: TaskItem = { id: crypto.randomUUID(), text, done: false }
   sec.tasks.push(item)
@@ -190,11 +190,11 @@ export function removeEquipment(id: string, equipmentId: string) {
   savePlaces(list)
 }
 
-export function toggleTask(id: string, taskId: string, done: boolean) {
+export function toggleTask(id: string, taskId: string, done: boolean, section: 'tasks' | 'teardown' = 'tasks') {
   const list = loadPlaces()
   const idx = list.findIndex(p => p.id === id)
   if (idx < 0) return
-  const sec = list[idx].sections['tasks']
+  const sec = list[idx].sections[section]
   if (!sec.tasks) return
   const t = sec.tasks.find(t => t.id === taskId)
   if (!t) return
@@ -202,11 +202,11 @@ export function toggleTask(id: string, taskId: string, done: boolean) {
   savePlaces(list)
 }
 
-export function updateTaskText(id: string, taskId: string, text: string) {
+export function updateTaskText(id: string, taskId: string, text: string, section: 'tasks' | 'teardown' = 'tasks') {
   const list = loadPlaces()
   const idx = list.findIndex(p => p.id === id)
   if (idx < 0) return
-  const sec = list[idx].sections['tasks']
+  const sec = list[idx].sections[section]
   if (!sec.tasks) return
   const t = sec.tasks.find(t => t.id === taskId)
   if (!t) return
@@ -214,12 +214,81 @@ export function updateTaskText(id: string, taskId: string, text: string) {
   savePlaces(list)
 }
 
-export function removeTask(id: string, taskId: string) {
+export function removeTask(id: string, taskId: string, section: 'tasks' | 'teardown' = 'tasks') {
   const list = loadPlaces()
   const idx = list.findIndex(p => p.id === id)
   if (idx < 0) return
-  const sec = list[idx].sections['tasks']
+  const sec = list[idx].sections[section]
   if (!sec.tasks) return
   sec.tasks = sec.tasks.filter(t => t.id !== taskId)
+  savePlaces(list)
+}
+
+export function reorderTasks(
+  id: string,
+  sourceId: string,
+  targetIndex: number,
+  section: 'tasks' | 'teardown' = 'tasks'
+) {
+  const list = loadPlaces()
+  const idx = list.findIndex(p => p.id === id)
+  if (idx < 0) return
+  const sec = list[idx].sections[section]
+  if (!sec.tasks) return
+  const from = sec.tasks.findIndex(t => t.id === sourceId)
+  if (from < 0) return
+  const to = Math.max(0, Math.min(targetIndex, sec.tasks.length - 1))
+  if (from === to) return
+  const [item] = sec.tasks.splice(from, 1)
+  sec.tasks.splice(to, 0, item)
+  savePlaces(list)
+}
+
+export function moveTask(id: string, taskId: string, direction: 'up' | 'down', section: 'tasks' | 'teardown' = 'tasks') {
+  const list = loadPlaces()
+  const idx = list.findIndex(p => p.id === id)
+  if (idx < 0) return
+  const sec = list[idx].sections[section]
+  if (!sec.tasks) return
+  const i = sec.tasks.findIndex(t => t.id === taskId)
+  if (i < 0) return
+  const j = direction === 'up' ? i - 1 : i + 1
+  if (j < 0 || j >= sec.tasks.length) return
+  const [item] = sec.tasks.splice(i, 1)
+  sec.tasks.splice(j, 0, item)
+  savePlaces(list)
+}
+
+export function moveEquipment(id: string, equipmentId: string, direction: 'up' | 'down') {
+  const list = loadPlaces()
+  const idx = list.findIndex(p => p.id === id)
+  if (idx < 0) return
+  const sec = list[idx].sections['equipment']
+  if (!sec.equipments) return
+  const i = sec.equipments.findIndex(e => e.id === equipmentId)
+  if (i < 0) return
+  const j = direction === 'up' ? i - 1 : i + 1
+  if (j < 0 || j >= sec.equipments.length) return
+  const [item] = sec.equipments.splice(i, 1)
+  sec.equipments.splice(j, 0, item)
+  savePlaces(list)
+}
+
+export function reorderEquipment(
+  id: string,
+  sourceId: string,
+  targetIndex: number,
+) {
+  const list = loadPlaces()
+  const idx = list.findIndex(p => p.id === id)
+  if (idx < 0) return
+  const sec = list[idx].sections['equipment']
+  if (!sec.equipments) return
+  const from = sec.equipments.findIndex(e => e.id === sourceId)
+  if (from < 0) return
+  const to = Math.max(0, Math.min(targetIndex, sec.equipments.length - 1))
+  if (from === to) return
+  const [item] = sec.equipments.splice(from, 1)
+  sec.equipments.splice(to, 0, item)
   savePlaces(list)
 }

@@ -4,7 +4,7 @@ import { useParams, usePathname } from 'next/navigation'
 import { getPlace, getPlaceAsync, loadPlaces, loadPlacesAsync, savePlaces, subscribePlaces } from '@/lib/storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-const tabs = [
+const sections = [
   { key: 'equipment', label: '機材リスト' },
   { key: 'tasks', label: 'やることリスト' },
   { key: 'wiring', label: '繋ぎ方' },
@@ -16,6 +16,9 @@ export default function PlaceLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const [name, setName] = useState('')
   const loadedRef = useRef(false)
+  const palette = useMemo(() => [
+    '#BFDBFE', '#C7D2FE', '#FBCFE8', '#FDE68A'
+  ], [])
 
   useEffect(() => {
     const p = getPlace(params.id)
@@ -49,22 +52,22 @@ export default function PlaceLayout({ children }: { children: React.ReactNode })
     }
   }, [name, params.id])
 
-  const activeKey = useMemo(() => {
-    for (const t of tabs) {
-      if (pathname.endsWith('/' + t.key)) return t.key
-    }
-    return 'equipment'
-  }, [pathname])
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Link href="/" className="btn-secondary">← 一覧へ</Link>
         <input className="input" value={name} onChange={e => setName(e.target.value)} />
       </div>
-      <div className="card p-2 flex gap-2 overflow-x-auto">
-        {tabs.map(t => (
-          <Link key={t.key} className={`tab ${activeKey === t.key ? 'tab-active' : ''}`} href={`/place/${params.id}/${t.key}`}>{t.label}</Link>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {sections.map((s, i) => (
+          <Link
+            key={s.key}
+            href={`/place/${params.id}/${s.key}`}
+            className="w-full rounded-full px-4 py-2 text-center font-semibold shadow-sm"
+            style={{ background: palette[i % palette.length] }}
+          >
+            {s.label}
+          </Link>
         ))}
       </div>
       <div>

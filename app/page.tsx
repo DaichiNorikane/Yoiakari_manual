@@ -54,7 +54,6 @@ export default function HomePage() {
             </Link>
             <div className="flex gap-2">
               <input className="input flex-1" value={p.name} onChange={e => onRename(p.id, e.target.value)} />
-              <button className="btn-ghost" onClick={() => router.push(`/place/${p.id}/equipment`)}>開く</button>
               <button className="btn-danger" onClick={() => { if (confirm('この場所を削除しますか？')) { const next = places.filter(x => x.id !== p.id); savePlaces(next); setPlaces(next); deletePlace(p.id) } }}>削除</button>
             </div>
           </div>
