@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPlace, deletePlace, loadPlaces, loadPlacesAsync, savePlaces, subscribePlaces } from '@/lib/storage'
 import type { Place } from '@/types'
 import { useRouter } from 'next/navigation'
+import { useAdmin } from '@/lib/auth'
 
 export default function HomePage() {
   const [places, setPlaces] = useState<Place[]>([])
   const [newName, setNewName] = useState('')
   const router = useRouter()
+  const admin = useAdmin()
   const palette = useMemo(() => [
     '#BFDBFE', '#C7D2FE', '#FBCFE8', '#FDE68A', '#A7F3D0', '#FECACA', '#FDE2E2'
   ], [])
@@ -31,11 +33,7 @@ export default function HomePage() {
     router.push(`/place/${p.id}/equipment`)
   }
 
-  function onRename(id: string, name: string) {
-    const next = places.map(p => p.id === id ? { ...p, name } : p)
-    setPlaces(next)
-    savePlaces(next)
-  }
+  // 場所名の編集は各場所ページ内で実施
 
   return (
     <div className="space-y-5">
@@ -52,9 +50,10 @@ export default function HomePage() {
             <Link href={`/place/${p.id}/equipment`} className="w-full rounded-full px-4 py-2 text-center font-semibold shadow-sm" style={{ background: palette[i % palette.length] }}>
               {p.name}
             </Link>
-            <div className="flex gap-2">
-              <input className="input flex-1" value={p.name} onChange={e => onRename(p.id, e.target.value)} />
-              <button className="btn-danger" onClick={() => { if (confirm('この場所を削除しますか？')) { const next = places.filter(x => x.id !== p.id); savePlaces(next); setPlaces(next); deletePlace(p.id) } }}>削除</button>
+            <div className="flex gap-2 justify-end">
+              {admin && (
+                <button className="btn-danger" onClick={() => { if (confirm('この場所を削除しますか？')) { const next = places.filter(x => x.id !== p.id); savePlaces(next); setPlaces(next); deletePlace(p.id) } }}>削除</button>
+              )}
             </div>
           </div>
         ))}

@@ -1,12 +1,20 @@
 "use client"
 import { useEffect, useState, useRef } from 'react'
-import { addTask, getPlace, getPlaceAsync, removeTask, toggleTask, updateTaskText, subscribePlaces, moveTask, reorderTasks } from '@/lib/storage'
+import { addTask, getPlace, getPlaceAsync, removeTask, toggleTask, updateTaskText, subscribePlaces, reorderTasks } from '@/lib/storage'
 import type { SectionKey } from '@/types'
+import { useAdmin } from '@/lib/auth'
 
 export default function TasksEditor({ placeId, section = 'tasks' as Extract<SectionKey, 'tasks' | 'teardown'> }: { placeId: string, section?: Extract<SectionKey, 'tasks' | 'teardown'> }) {
   const [tasks, setTasks] = useState<{ id: string; text: string; done: boolean }[]>([])
   const [input, setInput] = useState('')
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const dragIdRef = useRef<string | null>(null)
+  const overIndexRef = useRef<number>(-1)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [overIndex, setOverIndex] = useState<number>(-1)
+  const pressTimerRef = useRef<number | null>(null)
+  const startPosRef = useRef<{ x: number; y: number } | null>(null)
+  const admin = useAdmin()
 
   useEffect(() => {
     const p = getPlace(placeId)
@@ -47,9 +55,60 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
     refresh()
   }
 
-  function onMove(id: string, dir: 'up' | 'down') {
-    moveTask(placeId, id, dir, section)
-    refresh()
+  function beginDrag(id: string) {
+    dragIdRef.current = id
+    setDraggingId(id)
+  }
+
+  function clearTimers() {
+    if (pressTimerRef.current) {
+      window.clearTimeout(pressTimerRef.current)
+      pressTimerRef.current = null
+    }
+  }
+
+  function onPointerDown(e: React.PointerEvent, id: string) {
+    startPosRef.current = { x: e.clientX, y: e.clientY }
+    clearTimers()
+    if (e.pointerType === 'mouse') {
+      beginDrag(id)
+    } else {
+      pressTimerRef.current = window.setTimeout(() => beginDrag(id), 250)
+    }
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    const start = startPosRef.current
+    if (!start) return
+    const dx = e.clientX - start.x
+    const dy = e.clientY - start.y
+    if (!dragIdRef.current) {
+      if (Math.hypot(dx, dy) > 6) clearTimers()
+      return
+    }
+    const container = containerRef.current
+    if (!container) return
+    const rows = Array.from(container.querySelectorAll<HTMLElement>('[data-row="1"]'))
+    let idx = rows.findIndex((el) => {
+      const r = el.getBoundingClientRect()
+      return e.clientY < r.top + r.height / 2
+    })
+    if (idx === -1) idx = rows.length - 1
+    overIndexRef.current = idx
+    setOverIndex(idx)
+  }
+
+  function onPointerUp() {
+    clearTimers()
+    if (dragIdRef.current && overIndexRef.current >= 0) {
+      reorderTasks(placeId, dragIdRef.current, overIndexRef.current, section)
+      refresh()
+    }
+    dragIdRef.current = null
+    overIndexRef.current = -1
+    setDraggingId(null)
+    setOverIndex(-1)
+    startPosRef.current = null
   }
 
   function onDragStart(id: string) {
@@ -71,28 +130,16 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
   return (
     <div className="card p-3 space-y-3" style={{ background: '#fff' }}>
       <div className="text-sm text-slate-500">{section === 'tasks' ? 'やることリスト' : 'バラシ手順（チェックリスト）'}</div>
-      <div className="flex gap-2">
-        <input
-          className="input flex-1"
-          placeholder={section === 'tasks' ? 'タスクを入力して追加（Enter可）' : 'バラシ項目を入力して追加（Enter可）'}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') add() }}
-        />
-        <button className="btn" onClick={add}>追加</button>
-      </div>
-      <div className="space-y-2">
+      <div className="space-y-2" ref={containerRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
         {tasks.length === 0 ? (
           <div className="text-slate-500 text-sm">{section === 'tasks' ? 'まだタスクがありません' : 'まだ項目がありません'}</div>
         ) : tasks.map((t, i) => (
           <div
             key={t.id}
-            className="flex items-center gap-2 p-2 rounded border bg-white"
-            draggable
-            onDragStart={() => onDragStart(t.id)}
-            onDragOver={onDragOver}
-            onDrop={() => onDrop(i)}
-            title="ドラッグで並び替え（モバイルは▲/▼を使用）"
+            data-row="1"
+            className={`flex items-center gap-2 p-2 rounded border bg-white transition-colors ${draggingId === t.id ? '!border-violet-300 bg-violet-50 cursor-grabbing' : overIndex === i && draggingId ? 'border-indigo-300' : 'cursor-grab'}`}
+            onPointerDown={(e) => onPointerDown(e, t.id)}
+            title="長押しして上下にドラッグで並び替え"
           >
             <input
               type="checkbox"
@@ -105,13 +152,20 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
               value={t.text}
               onChange={e => onUpdate(t.id, e.target.value)}
             />
-            <div className="flex gap-1">
-              <button className="btn-secondary !px-2" title="上へ" onClick={() => onMove(t.id, 'up')}>▲</button>
-              <button className="btn-secondary !px-2" title="下へ" onClick={() => onMove(t.id, 'down')}>▼</button>
-            </div>
-            <button className="btn-secondary" onClick={() => onRemove(t.id)}>削除</button>
+            {admin && (
+              <button className="btn-secondary" onClick={() => onRemove(t.id)}>削除</button>
+            )}
           </div>
         ))}
+      </div>
+      <div className="flex gap-2">
+        <input
+          className="input flex-1"
+          placeholder={section === 'tasks' ? 'タスクを入力して追加' : 'バラシ項目を入力して追加'}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+        />
+        <button className="btn" onClick={add}>追加</button>
       </div>
     </div>
   )

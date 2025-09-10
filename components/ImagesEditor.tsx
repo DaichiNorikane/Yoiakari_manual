@@ -2,9 +2,11 @@
 import { useEffect, useState } from 'react'
 import { addImages, getPlace, getPlaceAsync, removeImage, subscribePlaces } from '@/lib/storage'
 import { SectionKey } from '@/types'
+import { useAdmin } from '@/lib/auth'
 
 export default function ImagesEditor({ placeId, section }: { placeId: string, section: Extract<SectionKey, 'wiring' | 'tasks' | 'equipment' | 'teardown'> }) {
   const [images, setImages] = useState<{ id: string; name: string; dataUrl: string }[]>([])
+  const admin = useAdmin()
 
   useEffect(() => {
     const p = getPlace(placeId)
@@ -48,7 +50,9 @@ export default function ImagesEditor({ placeId, section }: { placeId: string, se
           {images.map(img => (
             <div key={img.id} className="relative group">
               <img src={img.dataUrl} alt={img.name} className="w-full h-32 object-cover rounded-lg border" />
-              <button className="absolute top-2 right-2 btn-secondary !px-2 !py-1 opacity-90" onClick={() => onRemove(img.id)}>削除</button>
+              {admin && (
+                <button className="absolute top-2 right-2 btn-secondary !px-2 !py-1 opacity-90" onClick={() => onRemove(img.id)}>削除</button>
+              )}
             </div>
           ))}
         </div>

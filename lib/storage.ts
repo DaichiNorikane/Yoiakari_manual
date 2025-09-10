@@ -1,6 +1,7 @@
 "use client"
 import { Place, SectionData, SectionKey, TaskItem, EquipmentItem } from '@/types'
 import { fetchSharedDoc, saveSharedDoc, isSharedEnabled } from '@/lib/supabase'
+import { isAdmin } from '@/lib/auth'
 
 const STORAGE_KEY = 'yoi_places_v1'
 
@@ -95,6 +96,7 @@ export function renamePlace(id: string, name: string) {
 }
 
 export function deletePlace(id: string) {
+  if (!isAdmin()) return
   const list = loadPlaces().filter(p => p.id !== id)
   savePlaces(list)
 }
@@ -136,6 +138,7 @@ export async function addImages(id: string, key: SectionKey, files: File[]) {
 }
 
 export function removeImage(id: string, key: SectionKey, imageId: string) {
+  if (!isAdmin()) return
   const list = loadPlaces()
   const idx = list.findIndex(p => p.id === id)
   if (idx < 0) return
@@ -181,6 +184,7 @@ export function updateEquipmentText(id: string, equipmentId: string, text: strin
 }
 
 export function removeEquipment(id: string, equipmentId: string) {
+  if (!isAdmin()) return
   const list = loadPlaces()
   const idx = list.findIndex(p => p.id === id)
   if (idx < 0) return
@@ -215,6 +219,7 @@ export function updateTaskText(id: string, taskId: string, text: string, section
 }
 
 export function removeTask(id: string, taskId: string, section: 'tasks' | 'teardown' = 'tasks') {
+  if (!isAdmin()) return
   const list = loadPlaces()
   const idx = list.findIndex(p => p.id === id)
   if (idx < 0) return
@@ -290,5 +295,43 @@ export function reorderEquipment(
   if (from === to) return
   const [item] = sec.equipments.splice(from, 1)
   sec.equipments.splice(to, 0, item)
+  savePlaces(list)
+}
+
+// ---- Equipment item images ----
+export async function addEquipmentImages(placeId: string, equipmentId: string, files: File[]) {
+  const list = loadPlaces()
+  const idx = list.findIndex(p => p.id === placeId)
+  if (idx < 0) return
+  const sec = list[idx].sections['equipment']
+  if (!sec.equipments) return
+  const e = sec.equipments.find(e => e.id === equipmentId)
+  if (!e) return
+
+  const toDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+
+  if (!e.images) e.images = []
+  for (const f of files) {
+    const dataUrl = await toDataUrl(f)
+    e.images.push({ id: crypto.randomUUID(), name: f.name, dataUrl })
+  }
+  savePlaces(list)
+}
+
+export function removeEquipmentImage(placeId: string, equipmentId: string, imageId: string) {
+  if (!isAdmin()) return
+  const list = loadPlaces()
+  const idx = list.findIndex(p => p.id === placeId)
+  if (idx < 0) return
+  const sec = list[idx].sections['equipment']
+  if (!sec.equipments) return
+  const e = sec.equipments.find(e => e.id === equipmentId)
+  if (!e || !e.images) return
+  e.images = e.images.filter(img => img.id !== imageId)
   savePlaces(list)
 }

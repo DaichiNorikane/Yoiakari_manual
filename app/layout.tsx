@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import SharedBadge from '@/components/SharedBadge'
 import RealtimeBootstrap from '@/components/RealtimeBootstrap'
+import AdminBadge from '@/components/AdminBadge'
 import { Noto_Sans_JP } from 'next/font/google'
 
 const jpFont = Noto_Sans_JP({ subsets: ['latin'], weight: ['400','500','700'], display: 'swap' })
@@ -23,6 +24,7 @@ export default function RootLayout({
           {children}
         </div>
         <SharedBadge />
+        <AdminBadge />
         <RealtimeBootstrap />
       </body>
     </html>

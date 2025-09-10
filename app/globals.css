@@ -7,7 +7,14 @@
 }
 
 html, body {
-  background: var(--bg);
+  background-color: #0b1020; /* fallback */
+  background-image:
+    linear-gradient(rgba(255,255,255,0.82), rgba(255,255,255,0.82)),
+    url('/bg.jpg');
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  background-attachment: fixed;
 }
 
 .card {

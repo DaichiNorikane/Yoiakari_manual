@@ -15,6 +15,7 @@ export type TaskItem = {
 export type EquipmentItem = {
   id: string
   text: string
+  images?: ImageItem[]
 }
 
 export type SectionData = {
