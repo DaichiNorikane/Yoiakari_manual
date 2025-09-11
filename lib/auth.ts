@@ -29,7 +29,9 @@ function writeAdmin(v: boolean) {
 
 export function subscribeAdmin(cb: AdminListener) {
   listeners.add(cb)
-  return () => listeners.delete(cb)
+  return () => {
+    listeners.delete(cb)
+  }
 }
 
 export function loginAdmin(code: string): boolean {
@@ -58,4 +60,3 @@ export function useAdmin(): boolean {
   }, [])
   return on
 }
-
