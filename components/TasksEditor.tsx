@@ -147,7 +147,7 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
           <div
             key={t.id}
             data-row="1"
-            ref={el => (itemRefs.current[t.id] = el)}
+            ref={el => { itemRefs.current[t.id] = el }}
             className={`flex flex-col gap-2 rounded border bg-white transition-[transform,background,border] duration-150 ${draggingId === t.id ? '!border-violet-300 bg-violet-50 cursor-grabbing shadow-lg' : 'cursor-grab'}`}
             onPointerDown={(e) => onPointerDown(e, t.id)}
             title="長押しして上下にドラッグで並び替え"
