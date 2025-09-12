@@ -7,7 +7,7 @@ import Lightbox from '@/components/Lightbox'
 
 export default function SectionEditor({ placeId, section }: { placeId: string, section: SectionKey }) {
   const [text, setText] = useState('')
-  const [images, setImages] = useState<{ id: string, name: string, dataUrl: string }[]>([])
+  const [images, setImages] = useState<{ id: string, name: string, dataUrl: string, url?: string }[]>([])
   const [viewIndex, setViewIndex] = useState<number>(-1)
 
   useEffect(() => {

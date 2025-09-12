@@ -6,7 +6,7 @@ import Lightbox from '@/components/Lightbox'
 
 export default function EquipmentImagesEditor({ placeId, equipmentId }: { placeId: string, equipmentId: string }) {
   const [name, setName] = useState('')
-  const [images, setImages] = useState<{ id: string; name: string; dataUrl: string }[]>([])
+  const [images, setImages] = useState<{ id: string; name: string; dataUrl: string; url?: string }[]>([])
   const admin = useAdmin()
   const [viewIndex, setViewIndex] = useState<number>(-1)
   const lightboxImages = useMemo(() => images.map(i => ({ src: i.url || i.dataUrl, alt: i.name })), [images])

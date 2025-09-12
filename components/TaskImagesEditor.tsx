@@ -6,7 +6,7 @@ import Lightbox from '@/components/Lightbox'
 
 export default function TaskImagesEditor({ placeId, section = 'tasks' as 'tasks' | 'teardown', taskId }: { placeId: string, section?: 'tasks' | 'teardown', taskId: string }) {
   const [text, setText] = useState('')
-  const [images, setImages] = useState<{ id: string; name: string; dataUrl: string }[]>([])
+  const [images, setImages] = useState<{ id: string; name: string; dataUrl: string; url?: string }[]>([])
   const admin = useAdmin()
   const [viewIndex, setViewIndex] = useState<number>(-1)
   const lightboxImages = useMemo(() => images.map(i => ({ src: i.url || i.dataUrl, alt: i.name })), [images])
