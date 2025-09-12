@@ -96,6 +96,7 @@ export default function SectionEditor({ placeId, section }: { placeId: string, s
                       const signed = await maybeSignPublicUrl(img.url)
                       if (signed && signed !== (e.currentTarget as HTMLImageElement).src) {
                         ;(e.currentTarget as HTMLImageElement).src = signed
+                        setImages(prev => prev.map((m, j) => j === idx ? { ...m, url: signed } : m))
                       }
                     }
                   }}

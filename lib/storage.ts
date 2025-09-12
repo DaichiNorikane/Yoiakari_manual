@@ -132,13 +132,13 @@ function sanitizeForRemote(places: Place[]): Place[] {
     ...p,
     sections: Object.fromEntries(Object.entries(p.sections).map(([k, s]) => {
       const sec = s as SectionData
-      const slimImages = sec.images?.filter(img => !!img.url).map(({ id, name, url }) => ({ id, name, url }))
+      const slimImages = sec.images?.map(({ id, name, url, dataUrl }) => ({ id, name, url, dataUrl }))
       const next: SectionData = { ...sec, images: slimImages as any }
       if (sec.equipments) {
-        next.equipments = sec.equipments.map(e => ({ ...e, images: e.images?.filter(img => !!img.url).map(({ id, name, url }) => ({ id, name, url })) as any }))
+        next.equipments = sec.equipments.map(e => ({ ...e, images: e.images?.map(({ id, name, url, dataUrl }) => ({ id, name, url, dataUrl })) as any }))
       }
       if (sec.tasks) {
-        next.tasks = sec.tasks.map(t => ({ ...t, images: t.images?.filter(img => !!img.url).map(({ id, name, url }) => ({ id, name, url })) as any }))
+        next.tasks = sec.tasks.map(t => ({ ...t, images: t.images?.map(({ id, name, url, dataUrl }) => ({ id, name, url, dataUrl })) as any }))
       }
       return [k, next]
     })) as any,
