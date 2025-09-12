@@ -35,7 +35,12 @@ export function loadPlaces(): Place[] {
 
 export function savePlaces(places: Place[], opts?: { skipRemote?: boolean }) {
   if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(places))
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(places))
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[storage] localStorage setItem failed (quota?)', e)
+  }
   // best-effort remote sync
   if (isSharedEnabled && !opts?.skipRemote) {
     // no await to keep UI responsive
@@ -52,7 +57,7 @@ export async function loadPlacesAsync(): Promise<Place[]> {
   if (remote && Array.isArray(remote.places)) {
     const local = loadPlaces()
     const merged = mergeRemoteWithLocal(remote.places, local)
-    savePlaces(merged, { skipRemote: true }) // update local cache only (no re-upload)
+    try { savePlaces(merged, { skipRemote: true }) } catch {}
     return merged
   }
   // no remote doc yet: seed from local if any
