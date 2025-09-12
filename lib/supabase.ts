@@ -11,6 +11,8 @@ export const supabase: SupabaseClient | null = isSharedEnabled
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null
 
+export const STORAGE_BUCKET = 'manual-images'
+
 export type ManualDoc = {
   id: string
   data: unknown

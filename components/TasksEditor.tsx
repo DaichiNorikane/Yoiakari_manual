@@ -3,11 +3,13 @@ import { useEffect, useState, useRef } from 'react'
 import { addTask, getPlace, getPlaceAsync, removeTask, toggleTask, updateTaskText, subscribePlaces, reorderTasks } from '@/lib/storage'
 import type { SectionKey } from '@/types'
 import { useAdmin } from '@/lib/auth'
+import Link from 'next/link'
 
 export default function TasksEditor({ placeId, section = 'tasks' as Extract<SectionKey, 'tasks' | 'teardown'> }: { placeId: string, section?: Extract<SectionKey, 'tasks' | 'teardown'> }) {
   const [tasks, setTasks] = useState<{ id: string; text: string; done: boolean }[]>([])
   const [input, setInput] = useState('')
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const dragIdRef = useRef<string | null>(null)
   const overIndexRef = useRef<number>(-1)
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -15,6 +17,8 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
   const pressTimerRef = useRef<number | null>(null)
   const startPosRef = useRef<{ x: number; y: number } | null>(null)
   const admin = useAdmin()
+  const [dragOffsetY, setDragOffsetY] = useState(0)
+  const [dragItemHeight, setDragItemHeight] = useState(0)
 
   useEffect(() => {
     const p = getPlace(placeId)
@@ -61,6 +65,8 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
     const fromIdx = tasks.findIndex(x => x.id === id)
     setInsertIndex(fromIdx)
     overIndexRef.current = fromIdx
+    const el = itemRefs.current[id]
+    if (el) setDragItemHeight(el.getBoundingClientRect().height)
   }
 
   function clearTimers() {
@@ -73,11 +79,8 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
   function onPointerDown(e: React.PointerEvent, id: string) {
     startPosRef.current = { x: e.clientX, y: e.clientY }
     clearTimers()
-    if (e.pointerType === 'mouse') {
-      beginDrag(id)
-    } else {
-      pressTimerRef.current = window.setTimeout(() => beginDrag(id), 250)
-    }
+    // both mouse and touch require a short hold to enter drag mode
+    pressTimerRef.current = window.setTimeout(() => beginDrag(id), 160)
   }
 
   function onPointerMove(e: React.PointerEvent) {
@@ -89,6 +92,7 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
       if (Math.hypot(dx, dy) > 6) clearTimers()
       return
     }
+    setDragOffsetY(dy)
     const container = containerRef.current
     if (!container) return
     const rows = Array.from(container.querySelectorAll<HTMLElement>('[data-row="1"]'))
@@ -143,9 +147,11 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
           <div
             key={t.id}
             data-row="1"
-            className={`flex flex-col gap-2 rounded border bg-white transition-colors ${draggingId === t.id ? '!border-violet-300 bg-violet-50 cursor-grabbing shadow' : 'cursor-grab'}`}
+            ref={el => (itemRefs.current[t.id] = el)}
+            className={`flex flex-col gap-2 rounded border bg-white transition-[transform,background,border] duration-150 ${draggingId === t.id ? '!border-violet-300 bg-violet-50 cursor-grabbing shadow-lg' : 'cursor-grab'}`}
             onPointerDown={(e) => onPointerDown(e, t.id)}
             title="長押しして上下にドラッグで並び替え"
+            style={draggingId === t.id ? { transform: `translateY(${dragOffsetY}px)`, zIndex: 10, position: 'relative' } : undefined}
           >
             {draggingId && insertIndex === i && (
               <div className="h-0.5 -mt-1 rounded bg-indigo-400" />
@@ -162,6 +168,7 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
                 value={t.text}
                 onChange={e => onUpdate(t.id, e.target.value)}
               />
+              <Link className="btn-secondary !px-2" title="画像" href={`/place/${placeId}/tasks/${t.id}`}>画像</Link>
               {admin && (
                 <button className="btn-secondary" onClick={() => onRemove(t.id)}>削除</button>
               )}

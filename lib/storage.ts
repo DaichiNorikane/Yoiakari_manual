@@ -1,6 +1,6 @@
 "use client"
-import { Place, SectionData, SectionKey, TaskItem, EquipmentItem } from '@/types'
-import { fetchSharedDoc, saveSharedDoc, isSharedEnabled } from '@/lib/supabase'
+import { Place, SectionData, SectionKey, TaskItem, EquipmentItem, ImageItem } from '@/types'
+import { fetchSharedDoc, saveSharedDoc, isSharedEnabled, supabase, STORAGE_BUCKET } from '@/lib/supabase'
 import { isAdmin } from '@/lib/auth'
 
 const STORAGE_KEY = 'yoi_places_v1'
@@ -43,9 +43,8 @@ export function savePlaces(places: Place[], opts?: { skipRemote?: boolean }) {
   }
   // best-effort remote sync
   if (isSharedEnabled && !opts?.skipRemote) {
-    // no await to keep UI responsive
-    // structure: { version: 1, places }
-    void saveSharedDoc({ version: 1, places })
+    // best-effort async sync: upload missing images to storage, then save slim JSON
+    void syncRemote(places)
   }
   notify(places)
 }
@@ -78,20 +77,30 @@ function mergeRemoteWithLocal(remote: Place[], local: Place[]): Place[] {
     for (const k of keys) {
       const rs = r.sections[k]
       const ls = l.sections[k]
-      // Prefer larger image set to avoid losing newly added local images due to stale remote
-      if (ls?.images && (rs?.images?.length ?? 0) < ls.images.length) {
-        mergedSections[k] = { ...rs, images: ls.images }
+      // Prefer entries that have URLs; merge counts to avoid losing local adds
+      if (ls?.images) {
+        const better = pickBetterImages(rs?.images, ls.images)
+        mergedSections[k] = { ...rs, images: better }
       }
       // Merge equipment item images as well
       if (k === 'equipment' && rs?.equipments && ls?.equipments) {
         const lMap = new Map(ls.equipments.map(e => [e.id, e]))
         mergedSections[k] = { ...mergedSections[k], equipments: rs.equipments.map(e => {
           const le = lMap.get(e.id)
-          if (le?.images && (!e.images || e.images.length < le.images.length)) {
-            return { ...e, images: le.images }
-          }
+          if (le?.images) return { ...e, images: pickBetterImages(e.images, le.images) }
           return e
         }) }
+      }
+      // Merge task item images
+      if (k === 'tasks' || k === 'teardown') {
+        if (rs?.tasks && ls?.tasks) {
+          const lMap = new Map(ls.tasks.map(t => [t.id, t]))
+          mergedSections[k] = { ...mergedSections[k], tasks: rs.tasks.map(t => {
+            const lt = lMap.get(t.id)
+            if (lt?.images) return { ...t, images: pickBetterImages(t.images, lt.images) }
+            return t
+          }) }
+        }
       }
     }
     return { ...r, sections: mergedSections }
@@ -102,6 +111,122 @@ function mergeRemoteWithLocal(remote: Place[], local: Place[]): Place[] {
     if (!remoteIds.has(lp.id)) result.push(lp)
   }
   return result
+}
+
+function pickBetterImages(remote?: ImageItem[], local?: ImageItem[]): ImageItem[] | undefined {
+  if (!remote && !local) return remote
+  if (!remote) return local
+  if (!local) return remote
+  // Prefer images that have url; merge by id
+  const map = new Map<string, ImageItem>()
+  for (const img of remote) map.set(img.id, img)
+  for (const img of local) {
+    const prev = map.get(img.id)
+    if (!prev) map.set(img.id, img)
+    else if (!prev.url && img.url) map.set(img.id, { ...prev, url: img.url })
+  }
+  return Array.from(map.values())
+}
+
+function sanitizeForRemote(places: Place[]): Place[] {
+  return places.map(p => ({
+    ...p,
+    sections: Object.fromEntries(Object.entries(p.sections).map(([k, s]) => {
+      const sec = s as SectionData
+      const slimImages = sec.images?.map(({ id, name, url }) => ({ id, name, url }))
+      const next: SectionData = { ...sec, images: slimImages as any }
+      if (sec.equipments) {
+        next.equipments = sec.equipments.map(e => ({ ...e, images: e.images?.map(({ id, name, url }) => ({ id, name, url })) as any }))
+      }
+      if (sec.tasks) {
+        next.tasks = sec.tasks.map(t => ({ ...t, images: t.images?.map(({ id, name, url }) => ({ id, name, url })) as any }))
+      }
+      return [k, next]
+    })) as any,
+  }))
+}
+
+async function uploadBlobToStorage(blob: Blob, filename: string, path: string): Promise<string | null> {
+  if (!isSharedEnabled || !supabase) return null
+  const key = `${path}/${Date.now()}_${Math.random().toString(36).slice(2)}_${filename}`
+  const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(key, blob, { upsert: false })
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.warn('[storage] upload error', error)
+    return null
+  }
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(key)
+  return data.publicUrl
+}
+
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  try {
+    const [meta, b64] = dataUrl.split(',')
+    const m = /data:(.*?);base64/.exec(meta)
+    const mime = m?.[1] || 'application/octet-stream'
+    const bin = atob(b64)
+    const len = bin.length
+    const arr = new Uint8Array(len)
+    for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i)
+    return new Blob([arr], { type: mime })
+  } catch {
+    return null
+  }
+}
+
+async function syncRemote(places: Place[]) {
+  if (!isSharedEnabled) return
+  // Attempt to upload any images that still lack a URL
+  for (const p of places) {
+    const secKeys: SectionKey[] = ['equipment', 'tasks', 'wiring', 'teardown']
+    for (const key of secKeys) {
+      const sec = p.sections[key]
+      if (sec.images) {
+        for (const img of sec.images) {
+          if (!img.url && img.dataUrl?.startsWith('data:')) {
+            const blob = dataUrlToBlob(img.dataUrl)
+            if (blob) {
+              const u = await uploadBlobToStorage(blob, img.name, `${p.id}/${key}`)
+              if (u) img.url = u
+            }
+          }
+        }
+      }
+      if (key === 'equipment' && sec.equipments) {
+        for (const e of sec.equipments) {
+          if (e.images) {
+            for (const img of e.images) {
+              if (!img.url && img.dataUrl?.startsWith('data:')) {
+                const blob = dataUrlToBlob(img.dataUrl)
+                if (blob) {
+                  const u = await uploadBlobToStorage(blob, img.name, `${p.id}/equipment/${e.id}`)
+                  if (u) img.url = u
+                }
+              }
+            }
+          }
+        }
+      }
+      if ((key === 'tasks' || key === 'teardown') && sec.tasks) {
+        for (const t of sec.tasks) {
+          if (t.images) {
+            for (const img of t.images) {
+              if (!img.url && img.dataUrl?.startsWith('data:')) {
+                const blob = dataUrlToBlob(img.dataUrl)
+                if (blob) {
+                  const u = await uploadBlobToStorage(blob, img.name, `${p.id}/${key}/${t.id}`)
+                  if (u) img.url = u
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  // Finally, save slimmed JSON
+  const slim = sanitizeForRemote(places)
+  await saveSharedDoc({ version: 1, places: slim })
 }
 
 export function createEmptySections(): Record<SectionKey, SectionData> {
@@ -175,7 +300,9 @@ export async function addImages(id: string, key: SectionKey, files: File[]) {
 
   for (const f of files) {
     const dataUrl = await toDataUrl(f)
-    list[idx].sections[key].images.push({ id: crypto.randomUUID(), name: f.name, dataUrl })
+    let url: string | null = null
+    try { url = await uploadBlobToStorage(f, f.name, `${id}/${key}`) } catch {}
+    list[idx].sections[key].images.push({ id: crypto.randomUUID(), name: f.name, dataUrl, url: url || undefined })
   }
   savePlaces(list)
 }
@@ -341,6 +468,46 @@ export function reorderEquipment(
   savePlaces(list)
 }
 
+// ---- Task item images ----
+export async function addTaskImages(placeId: string, section: 'tasks' | 'teardown', taskId: string, files: File[]) {
+  const list = loadPlaces()
+  const idx = list.findIndex(p => p.id === placeId)
+  if (idx < 0) return
+  const sec = list[idx].sections[section]
+  if (!sec.tasks) return
+  const t = sec.tasks.find(t => t.id === taskId)
+  if (!t) return
+
+  const toDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+
+  if (!t.images) t.images = []
+  for (const f of files) {
+    const dataUrl = await toDataUrl(f)
+    let url: string | null = null
+    try { url = await uploadBlobToStorage(f, f.name, `${placeId}/${section}/${taskId}`) } catch {}
+    t.images.push({ id: crypto.randomUUID(), name: f.name, dataUrl, url: url || undefined })
+  }
+  savePlaces(list)
+}
+
+export function removeTaskImage(placeId: string, section: 'tasks' | 'teardown', taskId: string, imageId: string) {
+  if (!isAdmin()) return
+  const list = loadPlaces()
+  const idx = list.findIndex(p => p.id === placeId)
+  if (idx < 0) return
+  const sec = list[idx].sections[section]
+  if (!sec.tasks) return
+  const t = sec.tasks.find(t => t.id === taskId)
+  if (!t || !t.images) return
+  t.images = t.images.filter(img => img.id !== imageId)
+  savePlaces(list)
+}
+
 // ---- Equipment item images ----
 export async function addEquipmentImages(placeId: string, equipmentId: string, files: File[]) {
   const list = loadPlaces()
@@ -361,7 +528,9 @@ export async function addEquipmentImages(placeId: string, equipmentId: string, f
   if (!e.images) e.images = []
   for (const f of files) {
     const dataUrl = await toDataUrl(f)
-    e.images.push({ id: crypto.randomUUID(), name: f.name, dataUrl })
+    let url: string | null = null
+    try { url = await uploadBlobToStorage(f, f.name, `${placeId}/equipment/${equipmentId}`) } catch {}
+    e.images.push({ id: crypto.randomUUID(), name: f.name, dataUrl, url: url || undefined })
   }
   savePlaces(list)
 }

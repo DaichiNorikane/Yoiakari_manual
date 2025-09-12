@@ -1,11 +1,11 @@
 "use client"
-import { useEffect, useState, useMemo } from 'react'
-import { addEquipmentImages, getPlace, getPlaceAsync, removeEquipmentImage, subscribePlaces } from '@/lib/storage'
+import { useEffect, useMemo, useState } from 'react'
+import { addTaskImages, getPlace, getPlaceAsync, removeTaskImage, subscribePlaces } from '@/lib/storage'
 import { useAdmin } from '@/lib/auth'
 import Lightbox from '@/components/Lightbox'
 
-export default function EquipmentImagesEditor({ placeId, equipmentId }: { placeId: string, equipmentId: string }) {
-  const [name, setName] = useState('')
+export default function TaskImagesEditor({ placeId, section = 'tasks' as 'tasks' | 'teardown', taskId }: { placeId: string, section?: 'tasks' | 'teardown', taskId: string }) {
+  const [text, setText] = useState('')
   const [images, setImages] = useState<{ id: string; name: string; dataUrl: string }[]>([])
   const admin = useAdmin()
   const [viewIndex, setViewIndex] = useState<number>(-1)
@@ -13,44 +13,44 @@ export default function EquipmentImagesEditor({ placeId, equipmentId }: { placeI
 
   useEffect(() => {
     const p = getPlace(placeId)
-    const e = p?.sections.equipment.equipments?.find(e => e.id === equipmentId)
-    if (e) {
-      setName(e.text)
-      setImages(e.images ?? [])
+    const t = p?.sections[section].tasks?.find(t => t.id === taskId)
+    if (t) {
+      setText(t.text)
+      setImages(t.images ?? [])
     }
     getPlaceAsync(placeId).then(pp => {
-      const ee = pp?.sections.equipment.equipments?.find(e => e.id === equipmentId)
-      if (ee) {
-        setName(ee.text)
-        setImages(ee.images ?? [])
+      const tt = pp?.sections[section].tasks?.find(t => t.id === taskId)
+      if (tt) {
+        setText(tt.text)
+        setImages(tt.images ?? [])
       }
     })
     const unsub = subscribePlaces(list => {
       const p2 = list.find(p => p.id === placeId)
-      const e2 = p2?.sections.equipment.equipments?.find(e => e.id === equipmentId)
-      if (e2) setImages(e2.images ?? [])
+      const t2 = p2?.sections[section].tasks?.find(t => t.id === taskId)
+      if (t2) setImages(t2.images ?? [])
     })
     return unsub
-  }, [placeId, equipmentId])
+  }, [placeId, taskId, section])
 
   async function onFilesSelected(files: FileList | null) {
     if (!files || files.length === 0) return
-    await addEquipmentImages(placeId, equipmentId, Array.from(files))
+    await addTaskImages(placeId, section, taskId, Array.from(files))
     const p = getPlace(placeId)
-    const e = p?.sections.equipment.equipments?.find(e => e.id === equipmentId)
-    if (e) setImages(e.images ?? [])
+    const t = p?.sections[section].tasks?.find(t => t.id === taskId)
+    if (t) setImages(t.images ?? [])
   }
 
   function onRemove(id: string) {
-    removeEquipmentImage(placeId, equipmentId, id)
+    removeTaskImage(placeId, section, taskId, id)
     const p = getPlace(placeId)
-    const e = p?.sections.equipment.equipments?.find(e => e.id === equipmentId)
-    if (e) setImages(e.images ?? [])
+    const t = p?.sections[section].tasks?.find(t => t.id === taskId)
+    if (t) setImages(t.images ?? [])
   }
 
   return (
     <div className="space-y-3">
-      <div className="text-sm text-slate-500">機材: {name}</div>
+      <div className="text-sm text-slate-500">タスク: {text}</div>
       <div className="card p-3">
         <div className="flex items-center justify-between">
           <div className="text-sm text-slate-500">画像</div>

@@ -4,12 +4,14 @@ export type ImageItem = {
   id: string
   name: string
   dataUrl: string
+  url?: string
 }
 
 export type TaskItem = {
   id: string
   text: string
   done: boolean
+  images?: ImageItem[]
 }
 
 export type EquipmentItem = {
