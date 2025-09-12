@@ -50,8 +50,10 @@ export async function loadPlacesAsync(): Promise<Place[]> {
   if (!isSharedEnabled) return loadPlaces()
   const remote = await fetchSharedDoc<{ version: number; places: Place[] }>()
   if (remote && Array.isArray(remote.places)) {
-    savePlaces(remote.places, { skipRemote: true }) // update local cache only
-    return remote.places
+    const local = loadPlaces()
+    const merged = mergeRemoteWithLocal(remote.places, local)
+    savePlaces(merged, { skipRemote: true }) // update local cache only (no re-upload)
+    return merged
   }
   // no remote doc yet: seed from local if any
   const local = loadPlaces()
@@ -59,6 +61,42 @@ export async function loadPlacesAsync(): Promise<Place[]> {
     await saveSharedDoc({ version: 1, places: local })
   }
   return local
+}
+
+function mergeRemoteWithLocal(remote: Place[], local: Place[]): Place[] {
+  const localMap = new Map(local.map(p => [p.id, p]))
+  const keys: SectionKey[] = ['equipment', 'tasks', 'wiring', 'teardown']
+  const result: Place[] = remote.map(r => {
+    const l = localMap.get(r.id)
+    if (!l) return r
+    const mergedSections: Record<SectionKey, SectionData> = { ...r.sections }
+    for (const k of keys) {
+      const rs = r.sections[k]
+      const ls = l.sections[k]
+      // Prefer larger image set to avoid losing newly added local images due to stale remote
+      if (ls?.images && (rs?.images?.length ?? 0) < ls.images.length) {
+        mergedSections[k] = { ...rs, images: ls.images }
+      }
+      // Merge equipment item images as well
+      if (k === 'equipment' && rs?.equipments && ls?.equipments) {
+        const lMap = new Map(ls.equipments.map(e => [e.id, e]))
+        mergedSections[k] = { ...mergedSections[k], equipments: rs.equipments.map(e => {
+          const le = lMap.get(e.id)
+          if (le?.images && (!e.images || e.images.length < le.images.length)) {
+            return { ...e, images: le.images }
+          }
+          return e
+        }) }
+      }
+    }
+    return { ...r, sections: mergedSections }
+  })
+  // also include local places that don't exist remotely yet
+  const remoteIds = new Set(remote.map(p => p.id))
+  for (const lp of local) {
+    if (!remoteIds.has(lp.id)) result.push(lp)
+  }
+  return result
 }
 
 export function createEmptySections(): Record<SectionKey, SectionData> {
