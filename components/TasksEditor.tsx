@@ -11,7 +11,7 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
   const dragIdRef = useRef<string | null>(null)
   const overIndexRef = useRef<number>(-1)
   const [draggingId, setDraggingId] = useState<string | null>(null)
-  const [overIndex, setOverIndex] = useState<number>(-1)
+  const [insertIndex, setInsertIndex] = useState<number>(-1)
   const pressTimerRef = useRef<number | null>(null)
   const startPosRef = useRef<{ x: number; y: number } | null>(null)
   const admin = useAdmin()
@@ -58,6 +58,9 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
   function beginDrag(id: string) {
     dragIdRef.current = id
     setDraggingId(id)
+    const fromIdx = tasks.findIndex(x => x.id === id)
+    setInsertIndex(fromIdx)
+    overIndexRef.current = fromIdx
   }
 
   function clearTimers() {
@@ -93,21 +96,24 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
       const r = el.getBoundingClientRect()
       return e.clientY < r.top + r.height / 2
     })
-    if (idx === -1) idx = rows.length - 1
+    if (idx === -1) idx = rows.length
     overIndexRef.current = idx
-    setOverIndex(idx)
+    setInsertIndex(idx)
   }
 
   function onPointerUp() {
     clearTimers()
     if (dragIdRef.current && overIndexRef.current >= 0) {
-      reorderTasks(placeId, dragIdRef.current, overIndexRef.current, section)
+      let target = overIndexRef.current
+      const fromIdx = tasks.findIndex(x => x.id === dragIdRef.current)
+      if (fromIdx >= 0 && fromIdx < target) target = target - 1
+      reorderTasks(placeId, dragIdRef.current, target, section)
       refresh()
     }
     dragIdRef.current = null
     overIndexRef.current = -1
     setDraggingId(null)
-    setOverIndex(-1)
+    setInsertIndex(-1)
     startPosRef.current = null
   }
 
@@ -137,26 +143,37 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
           <div
             key={t.id}
             data-row="1"
-            className={`flex items-center gap-2 p-2 rounded border bg-white transition-colors ${draggingId === t.id ? '!border-violet-300 bg-violet-50 cursor-grabbing' : overIndex === i && draggingId ? 'border-indigo-300' : 'cursor-grab'}`}
+            className={`flex flex-col gap-2 rounded border bg-white transition-colors ${draggingId === t.id ? '!border-violet-300 bg-violet-50 cursor-grabbing shadow' : 'cursor-grab'}`}
             onPointerDown={(e) => onPointerDown(e, t.id)}
             title="長押しして上下にドラッグで並び替え"
           >
-            <input
-              type="checkbox"
-              className="h-4 w-4"
-              checked={t.done}
-              onChange={e => onToggle(t.id, e.target.checked)}
-            />
-            <input
-              className="flex-1 bg-transparent outline-none"
-              value={t.text}
-              onChange={e => onUpdate(t.id, e.target.value)}
-            />
-            {admin && (
-              <button className="btn-secondary" onClick={() => onRemove(t.id)}>削除</button>
+            {draggingId && insertIndex === i && (
+              <div className="h-0.5 -mt-1 rounded bg-indigo-400" />
+            )}
+            <div className="flex items-center gap-2 p-2 w-full">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={t.done}
+                onChange={e => onToggle(t.id, e.target.checked)}
+              />
+              <input
+                className="flex-1 bg-transparent outline-none"
+                value={t.text}
+                onChange={e => onUpdate(t.id, e.target.value)}
+              />
+              {admin && (
+                <button className="btn-secondary" onClick={() => onRemove(t.id)}>削除</button>
+              )}
+            </div>
+            {draggingId && insertIndex === i + 1 && (
+              <div className="h-0.5 mb-1 rounded bg-indigo-400" />
             )}
           </div>
         ))}
+        {draggingId && insertIndex === tasks.length && (
+          <div className="h-0.5 rounded bg-indigo-400" />
+        )}
       </div>
       <div className="flex gap-2">
         <input

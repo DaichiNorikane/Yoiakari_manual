@@ -12,7 +12,7 @@ export default function EquipmentEditor({ placeId }: { placeId: string }) {
   const dragIdRef = useRef<string | null>(null)
   const overIndexRef = useRef<number>(-1)
   const [draggingId, setDraggingId] = useState<string | null>(null)
-  const [overIndex, setOverIndex] = useState<number>(-1)
+  const [insertIndex, setInsertIndex] = useState<number>(-1)
   const pressTimerRef = useRef<number | null>(null)
   const startPosRef = useRef<{ x: number; y: number } | null>(null)
 
@@ -53,6 +53,9 @@ export default function EquipmentEditor({ placeId }: { placeId: string }) {
   function beginDrag(id: string) {
     dragIdRef.current = id
     setDraggingId(id)
+    const fromIdx = items.findIndex(x => x.id === id)
+    setInsertIndex(fromIdx)
+    overIndexRef.current = fromIdx
   }
 
   function clearTimers() {
@@ -90,21 +93,24 @@ export default function EquipmentEditor({ placeId }: { placeId: string }) {
       const r = el.getBoundingClientRect()
       return e.clientY < r.top + r.height / 2
     })
-    if (idx === -1) idx = rows.length - 1
+    if (idx === -1) idx = rows.length
     overIndexRef.current = idx
-    setOverIndex(idx)
+    setInsertIndex(idx)
   }
 
   function onPointerUp() {
     clearTimers()
     if (dragIdRef.current && overIndexRef.current >= 0) {
-      reorderEquipment(placeId, dragIdRef.current, overIndexRef.current)
+      let target = overIndexRef.current
+      const fromIdx = items.findIndex(x => x.id === dragIdRef.current)
+      if (fromIdx >= 0 && fromIdx < target) target = target - 1
+      reorderEquipment(placeId, dragIdRef.current, target)
       refresh()
     }
     dragIdRef.current = null
     overIndexRef.current = -1
     setDraggingId(null)
-    setOverIndex(-1)
+    setInsertIndex(-1)
     startPosRef.current = null
   }
 
@@ -118,21 +124,32 @@ export default function EquipmentEditor({ placeId }: { placeId: string }) {
           <div
             key={it.id}
             data-row="1"
-            className={`flex items-center gap-2 p-2 rounded border bg-white transition-colors ${draggingId === it.id ? '!border-violet-300 bg-violet-50 cursor-grabbing' : overIndex === i && draggingId ? 'border-indigo-300' : 'cursor-grab'}`}
+            className={`flex flex-col gap-2 rounded border bg-white transition-colors ${draggingId === it.id ? '!border-violet-300 bg-violet-50 cursor-grabbing shadow' : 'cursor-grab'}`}
             onPointerDown={(e) => onPointerDown(e, it.id)}
             title="長押しして上下にドラッグで並び替え"
           >
-            <input
-              className="flex-1 bg-transparent outline-none"
-              value={it.text}
-              onChange={e => onUpdate(it.id, e.target.value)}
-            />
-            <Link className="btn-secondary !px-2" title="画像" href={`/place/${placeId}/equipment/${it.id}`}>画像</Link>
-            {admin && (
-              <button className="btn-secondary" onClick={() => onRemove(it.id)}>削除</button>
+            {draggingId && insertIndex === i && (
+              <div className="h-0.5 -mt-1 rounded bg-indigo-400" />
+            )}
+            <div className="flex items-center gap-2 p-2 w-full">
+              <input
+                className="flex-1 bg-transparent outline-none"
+                value={it.text}
+                onChange={e => onUpdate(it.id, e.target.value)}
+              />
+              <Link className="btn-secondary !px-2" title="画像" href={`/place/${placeId}/equipment/${it.id}`}>画像</Link>
+              {admin && (
+                <button className="btn-secondary" onClick={() => onRemove(it.id)}>削除</button>
+              )}
+            </div>
+            {draggingId && insertIndex === i + 1 && (
+              <div className="h-0.5 mb-1 rounded bg-indigo-400" />
             )}
           </div>
         ))}
+        {draggingId && insertIndex === items.length && (
+          <div className="h-0.5 rounded bg-indigo-400" />
+        )}
       </div>
       <div className="flex gap-2">
         <input
