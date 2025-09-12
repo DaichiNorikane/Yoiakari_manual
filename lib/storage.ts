@@ -113,14 +113,13 @@ function mergeRemoteWithLocal(remote: Place[], local: Place[]): Place[] {
   return result
 }
 
-function pickBetterImages(remote?: ImageItem[], local?: ImageItem[]): ImageItem[] | undefined {
-  if (!remote && !local) return remote
-  if (!remote) return local
-  if (!local) return remote
+function pickBetterImages(remote?: ImageItem[], local?: ImageItem[]): ImageItem[] {
+  const r = remote ?? []
+  const l = local ?? []
   // Prefer images that have url; merge by id
   const map = new Map<string, ImageItem>()
-  for (const img of remote) map.set(img.id, img)
-  for (const img of local) {
+  for (const img of r) map.set(img.id, img)
+  for (const img of l) {
     const prev = map.get(img.id)
     if (!prev) map.set(img.id, img)
     else if (!prev.url && img.url) map.set(img.id, { ...prev, url: img.url })
