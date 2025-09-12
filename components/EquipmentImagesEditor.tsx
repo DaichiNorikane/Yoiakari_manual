@@ -1,12 +1,15 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { addEquipmentImages, getPlace, getPlaceAsync, removeEquipmentImage, subscribePlaces } from '@/lib/storage'
 import { useAdmin } from '@/lib/auth'
+import Lightbox from '@/components/Lightbox'
 
 export default function EquipmentImagesEditor({ placeId, equipmentId }: { placeId: string, equipmentId: string }) {
   const [name, setName] = useState('')
   const [images, setImages] = useState<{ id: string; name: string; dataUrl: string }[]>([])
   const admin = useAdmin()
+  const [viewIndex, setViewIndex] = useState<number>(-1)
+  const lightboxImages = useMemo(() => images.map(i => ({ src: i.dataUrl, alt: i.name })), [images])
 
   useEffect(() => {
     const p = getPlace(placeId)
@@ -60,9 +63,9 @@ export default function EquipmentImagesEditor({ placeId, equipmentId }: { placeI
           <div className="text-slate-500 text-sm mt-2">画像はまだありません</div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-            {images.map(img => (
+            {images.map((img, idx) => (
               <div key={img.id} className="relative group">
-                <img src={img.dataUrl} alt={img.name} className="w-full h-32 object-cover rounded-lg border" />
+                <img src={img.dataUrl} alt={img.name} className="w-full h-32 object-cover rounded-lg border cursor-zoom-in" onClick={() => setViewIndex(idx)} />
                 {admin && (
                   <button className="absolute top-2 right-2 btn-secondary !px-2 !py-1 opacity-90" onClick={() => onRemove(img.id)}>削除</button>
                 )}
@@ -71,6 +74,15 @@ export default function EquipmentImagesEditor({ placeId, equipmentId }: { placeI
           </div>
         )}
       </div>
+      {viewIndex >= 0 && (
+        <Lightbox
+          images={lightboxImages}
+          index={viewIndex}
+          onClose={() => setViewIndex(-1)}
+          onPrev={() => setViewIndex((i) => (i - 1 + images.length) % images.length)}
+          onNext={() => setViewIndex((i) => (i + 1) % images.length)}
+        />
+      )}
     </div>
   )
 }

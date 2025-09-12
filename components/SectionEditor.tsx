@@ -3,10 +3,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { addImages, getPlace, getPlaceAsync, removeImage, updateSectionText, subscribePlaces } from '@/lib/storage'
 import { SectionKey } from '@/types'
 import { simpleMarkdown } from '@/lib/markdown'
+import Lightbox from '@/components/Lightbox'
 
 export default function SectionEditor({ placeId, section }: { placeId: string, section: SectionKey }) {
   const [text, setText] = useState('')
   const [images, setImages] = useState<{ id: string, name: string, dataUrl: string }[]>([])
+  const [viewIndex, setViewIndex] = useState<number>(-1)
 
   useEffect(() => {
     const p = getPlace(placeId)
@@ -81,15 +83,24 @@ export default function SectionEditor({ placeId, section }: { placeId: string, s
           <div className="text-slate-500 text-sm mt-2">画像はまだありません</div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-            {images.map(img => (
+            {images.map((img, idx) => (
               <div key={img.id} className="relative group">
-                <img src={img.dataUrl} alt={img.name} className="w-full h-32 object-cover rounded-lg border" />
+                <img src={img.dataUrl} alt={img.name} className="w-full h-32 object-cover rounded-lg border cursor-zoom-in" onClick={() => setViewIndex(idx)} />
                 <button className="absolute top-2 right-2 btn-secondary !px-2 !py-1 opacity-90" onClick={() => onRemoveImage(img.id)}>削除</button>
               </div>
             ))}
           </div>
         )}
       </div>
+      {viewIndex >= 0 && (
+        <Lightbox
+          images={images.map(i => ({ src: i.dataUrl, alt: i.name }))}
+          index={viewIndex}
+          onClose={() => setViewIndex(-1)}
+          onPrev={() => setViewIndex((i) => (i - 1 + images.length) % images.length)}
+          onNext={() => setViewIndex((i) => (i + 1) % images.length)}
+        />
+      )}
     </div>
   )
 }
