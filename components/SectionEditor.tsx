@@ -4,6 +4,7 @@ import { addImages, getPlace, getPlaceAsync, removeImage, updateSectionText, sub
 import { SectionKey } from '@/types'
 import { simpleMarkdown } from '@/lib/markdown'
 import Lightbox from '@/components/Lightbox'
+import { maybeSignPublicUrl } from '@/lib/supabase'
 
 export default function SectionEditor({ placeId, section }: { placeId: string, section: SectionKey }) {
   const [text, setText] = useState('')
@@ -85,7 +86,20 @@ export default function SectionEditor({ placeId, section }: { placeId: string, s
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
             {images.map((img, idx) => (
               <div key={img.id} className="relative group">
-                <img src={img.url || img.dataUrl} alt={img.name} className="w-full h-32 object-cover rounded-lg border cursor-zoom-in" onClick={() => setViewIndex(idx)} />
+                <img
+                  src={img.url || img.dataUrl}
+                  alt={img.name}
+                  className="w-full h-32 object-cover rounded-lg border cursor-zoom-in"
+                  onClick={() => setViewIndex(idx)}
+                  onError={async (e) => {
+                    if (img.url) {
+                      const signed = await maybeSignPublicUrl(img.url)
+                      if (signed && signed !== (e.currentTarget as HTMLImageElement).src) {
+                        ;(e.currentTarget as HTMLImageElement).src = signed
+                      }
+                    }
+                  }}
+                />
                 <button className="absolute top-2 right-2 btn-secondary !px-2 !py-1 opacity-90" onClick={() => onRemoveImage(img.id)}>削除</button>
               </div>
             ))}

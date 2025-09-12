@@ -13,6 +13,30 @@ export const supabase: SupabaseClient | null = isSharedEnabled
 
 export const STORAGE_BUCKET = 'manual-images'
 
+export function extractStorageKey(url: string): string | null {
+  try {
+    const u = new URL(url)
+    const idx = u.pathname.indexOf(`/${STORAGE_BUCKET}/`)
+    if (idx === -1) return null
+    return u.pathname.slice(idx + (`/${STORAGE_BUCKET}/`).length)
+  } catch {
+    return null
+  }
+}
+
+export async function maybeSignPublicUrl(url: string): Promise<string> {
+  if (!isSharedEnabled || !supabase) return url
+  const key = extractStorageKey(url)
+  if (!key) return url
+  try {
+    const { data, error } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(key, 3600)
+    if (error || !data?.signedUrl) return url
+    return data.signedUrl
+  } catch {
+    return url
+  }
+}
+
 export type ManualDoc = {
   id: string
   data: unknown

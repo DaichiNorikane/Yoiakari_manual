@@ -4,6 +4,7 @@ import { addImages, getPlace, getPlaceAsync, removeImage, subscribePlaces } from
 import { SectionKey } from '@/types'
 import { useAdmin } from '@/lib/auth'
 import Lightbox from '@/components/Lightbox'
+import { maybeSignPublicUrl } from '@/lib/supabase'
 
 export default function ImagesEditor({ placeId, section }: { placeId: string, section: Extract<SectionKey, 'wiring' | 'tasks' | 'equipment' | 'teardown'> }) {
   const [images, setImages] = useState<{ id: string; name: string; dataUrl: string; url?: string }[]>([])
@@ -52,7 +53,20 @@ export default function ImagesEditor({ placeId, section }: { placeId: string, se
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
           {images.map((img, idx) => (
             <div key={img.id} className="relative group">
-              <img src={img.url || img.dataUrl} alt={img.name} className="w-full h-32 object-cover rounded-lg border cursor-zoom-in" onClick={() => setViewIndex(idx)} />
+              <img
+                src={img.url || img.dataUrl}
+                alt={img.name}
+                className="w-full h-32 object-cover rounded-lg border cursor-zoom-in"
+                onClick={() => setViewIndex(idx)}
+                onError={async (e) => {
+                  if (img.url) {
+                    const signed = await maybeSignPublicUrl(img.url)
+                    if (signed && signed !== (e.currentTarget as HTMLImageElement).src) {
+                      ;(e.currentTarget as HTMLImageElement).src = signed
+                    }
+                  }
+                }}
+              />
               {admin && (
                 <button className="absolute top-2 right-2 btn-secondary !px-2 !py-1 opacity-90" onClick={() => onRemove(img.id)}>削除</button>
               )}

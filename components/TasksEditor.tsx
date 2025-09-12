@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { addTask, getPlace, getPlaceAsync, removeTask, toggleTask, updateTaskText, subscribePlaces, moveTask } from '@/lib/storage'
+import { addTask, getPlace, getPlaceAsync, removeTask, toggleTask, updateTaskText, subscribePlaces, moveTask, resetAllTasksDone } from '@/lib/storage'
 import type { SectionKey } from '@/types'
 import { useAdmin } from '@/lib/auth'
 import Link from 'next/link'
@@ -56,7 +56,12 @@ export default function TasksEditor({ placeId, section = 'tasks' as Extract<Sect
 
   return (
     <div className="card p-3 space-y-3" style={{ background: '#fff' }}>
-      <div className="text-sm text-slate-500">{section === 'tasks' ? 'やることリスト' : 'バラシ手順（チェックリスト）'}</div>
+      <div className="text-sm text-slate-500 flex items-center gap-2">
+        {section === 'tasks' ? 'やることリスト' : 'バラシ手順（チェックリスト）'}
+        {tasks.some(t => t.done) && (
+          <button className="btn-secondary !px-2 !py-1" onClick={() => { resetAllTasksDone(placeId, section); refresh() }} title="すべてのチェックを外す">全て外す</button>
+        )}
+      </div>
       <div className="space-y-2">
         {tasks.length === 0 ? (
           <div className="text-slate-500 text-sm">{section === 'tasks' ? 'まだタスクがありません' : 'まだ項目がありません'}</div>
